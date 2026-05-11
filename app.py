@@ -118,4 +118,4 @@ init();
 </script>
 """
 
-components.html(html_code, height=1000
+components.html(html_code, height=1000)
