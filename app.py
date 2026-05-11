@@ -1,41 +1,44 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="NEON AI FINAL", layout="wide")
+st.set_page_config(page_title="AI Multi-Coach", layout="wide")
 
 html_code = """
-<div id="app-shell" style="background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); font-family: 'Segoe UI', sans-serif; padding: 20px; border-radius: 30px; color: white; max-width: 1000px; margin: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);">
+<div id="app-shell" style="background: #000; font-family: 'Arial', sans-serif; padding: 15px; border-radius: 25px; color: white; max-width: 900px; margin: auto; border: 2px solid #333;">
 
-    <!-- HEADER -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h1 style="margin: 0; background: linear-gradient(to right, #00d4ff, #00ff87); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 1.8em;">NEON COACH PRO</h1>
-        <div id="pulse" style="width: 15px; height: 15px; background: #00ff87; border-radius: 50%; box-shadow: 0 0 15px #00ff87;"></div>
+    <!-- HEADER & MODE SWITCH -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 id="title-text" style="color: #00d4ff; margin: 0;">NEON CYBER MODE</h2>
+        <select id="mode-select" style="padding: 8px; border-radius: 10px; background: #222; color: white; border: 1px solid #00d4ff;">
+            <option value="cyber">Cyber Modus (Seriös)</option>
+            <option value="trainer">Schätzelein Modus (Anzüglich)</option>
+        </select>
     </div>
 
-    <!-- DASHBOARD -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-        <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; text-align: center; border: 1px solid #00d4ff;">
-            <small style="color: #00d4ff;">KNIE L/R</small><br><b id="angle-val">-- / --</b>
+    <!-- STATS BARS -->
+    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <div style="flex: 1; background: #111; padding: 10px; border-radius: 15px; text-align: center; border-bottom: 3px solid #00d4ff;">
+            <small>WINKEL</small><br><b id="deg-val">--°</b>
         </div>
-        <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; text-align: center; border: 1px solid #00ff87;">
-            <small style="color: #00ff87;">RÜCKEN</small><br><b id="back-val">WAIT</b>
+        <div style="flex: 1; background: #111; padding: 10px; border-radius: 15px; text-align: center; border-bottom: 3px solid #00ff87;">
+            <small>REPS</small><br><b id="rep-val">0</b>
         </div>
-        <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; text-align: center; border: 1px solid #ffaa00;">
-            <small style="color: #ffaa00;">REPS | BEST</small><br><b id="rep-val">0 | --</b>
+        <div style="flex: 1; background: #111; padding: 10px; border-radius: 15px; text-align: center; border-bottom: 3px solid #ff4b4b;">
+            <small>RÜCKEN</small><br><b id="back-val">OK</b>
         </div>
     </div>
 
-    <!-- VIEWPORT -->
-    <div style="position: relative; border-radius: 20px; overflow: hidden; background: #000; line-height: 0;">
-        <video id="video" autoplay playsinline muted style="width: 100%; height: auto; transition: opacity 0.4s;"></video>
-        <canvas id="canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none;"></canvas>
+    <!-- CAMERA VIEW -->
+    <div style="position: relative; border-radius: 20px; overflow: hidden; background: #050505;">
+        <video id="video" autoplay playsinline muted style="width: 100%; height: auto;"></video>
+        <canvas id="canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5;"></canvas>
     </div>
 
     <!-- CONTROLS -->
-    <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
-        <button id="start-btn" style="flex: 2; padding: 15px; background: #00ff87; color: #000; border: none; border-radius: 12px; font-weight: bold; cursor: pointer;">START</button>
-        <button id="ghost-btn" style="flex: 1; padding: 15px; background: #444; color: #fff; border: none; border-radius: 12px; cursor: pointer;">GHOST MODE</button>
-        <button id="switch-btn" style="padding: 15px; background: #222; color: #fff; border: 1px solid #444; border-radius: 12px; cursor: pointer;">📷</button>
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button id="start-btn" style="flex: 2; padding: 15px; border-radius: 15px; border: none; background: #00ff87; font-weight: bold; cursor: pointer;">TRAINING STARTEN</button>
+        <button id="ghost-btn" style="flex: 1; padding: 15px; border-radius: 15px; border: 1px solid #444; background: #222; color: white;">GHOST</button>
+        <button id="cam-btn" style="padding: 15px; border-radius: 15px; background: #333; color: white; border: none;">📷</button>
     </div>
 </div>
 
@@ -46,15 +49,20 @@ html_code = """
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-let detector, recording = false, ghost = false, currentFacingMode = 'environment';
-let reps = 0, stage = 'up', best = 180, lastSpeak = 0;
+const modeSelect = document.getElementById('mode-select');
 
-function speak(text) {
-    if (Date.now() - lastSpeak > 3000) {
-        const msg = new SpeechSynthesisUtterance(text);
-        msg.lang = 'de-DE';
-        window.speechSynthesis.speak(msg);
-        lastSpeak = Date.now();
+let detector, recording = false, ghost = false, currentFacingMode = 'environment';
+let reps = 0, stage = 'up', lastSpeak = 0;
+
+const phrases = {
+    cyber: { start: "System bereit. Beginne Training.", depth: "Optimale Tiefe.", rep: (n) => n, back: "Haltung korrigieren!" },
+    trainer: { start: "Na, dann zeig mal was du hast, Schätzelein!", depth: "Oh ja, so tief gefällt mir das!", rep: (n) => n + ". Das machst du super, Süßer!", back: "Nicht so krumm werden, Schätzchen!" }
+};
+
+function speak(t) {
+    if (Date.now() - lastSpeak > 2500) {
+        const m = new SpeechSynthesisUtterance(t); m.lang = 'de-DE';
+        window.speechSynthesis.speak(m); lastSpeak = Date.now();
     }
 }
 
@@ -65,8 +73,8 @@ function getAngle(a, b, c) {
 
 async function setupCam() {
     if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } });
-    video.srcObject = stream;
+    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } });
+    video.srcObject = s;
 }
 
 async function init() {
@@ -85,42 +93,48 @@ async function loop() {
             const kp = poses[0].keypoints;
             const sL = kp[5], sR = kp[6], hL = kp[11], hR = kp[12], kL = kp[13], kR = kp[14], aL = kp[15], aR = kp[16];
 
-            if (hL.score > 0.3 && hR.score > 0.3) {
-                const angL = getAngle(hL, kL, aL);
-                const angR = getAngle(hR, kR, aR);
-                const backAng = getAngle(sR, hR, kR);
-                const avg = (angL + angR) / 2;
+            if (hR.score > 0.3 && kR.score > 0.3) {
+                const ang = getAngle(hR, kR, aR);
+                const back = getAngle(sR, hR, kR);
+                const mode = modeSelect.value;
 
-                document.getElementById('angle-val').innerText = Math.round(angL) + " / " + Math.round(angR);
+                document.getElementById('deg-val').innerText = Math.round(ang) + "°";
 
                 if (recording) {
-                    if (avg < 105) { stage = 'down'; speak("Gute Tiefe"); }
-                    if (avg > 150 && stage === 'down') { reps++; stage = 'up'; speak(reps); }
-                    if (avg < best) best = Math.round(avg);
-                    
-                    document.getElementById('rep-val').innerText = reps + " | " + best + "°";
-                    document.getElementById('back-val').innerText = backAng < 145 ? "KRUMM" : "GERADE";
-                    if (backAng < 145) speak("Rücken gerade");
+                    if (ang < 100 && stage === 'up') { 
+                        stage = 'down'; speak(phrases[mode].depth); 
+                    }
+                    if (ang > 150 && stage === 'down') { 
+                        reps++; stage = 'up'; 
+                        speak(phrases[mode].rep(reps));
+                        document.getElementById('rep-val').innerText = reps;
+                    }
+                    if (back < 140) {
+                        document.getElementById('back-val').innerText = "KRUMM";
+                        speak(phrases[mode].back);
+                    } else {
+                        document.getElementById('back-val').innerText = "OK";
+                    }
                 }
 
-                // ZEICHNEN
-                ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.shadowBlur = 10; ctx.shadowColor = "#00d4ff";
-                
-                // Beine & Rücken
-                ctx.strokeStyle = "#00d4ff";
-                ctx.beginPath(); ctx.moveTo(hL.x, hL.y); ctx.lineTo(kL.x, kL.y); ctx.lineTo(aL.x, aL.y); ctx.stroke();
-                ctx.strokeStyle = "#00ff87";
-                ctx.beginPath(); ctx.moveTo(hR.x, hR.y); ctx.lineTo(kR.x, kR.y); ctx.lineTo(aR.x, aR.y); ctx.stroke();
-                
-                // Schultern & Rücken (NEU: Sichtbare Schulterpunkte)
-                ctx.strokeStyle = "#ffffff";
-                ctx.beginPath(); ctx.moveTo(sL.x, sL.y); ctx.lineTo(sR.x, sR.y); ctx.stroke(); // Schulterlinie
-                ctx.beginPath(); ctx.moveTo(sR.x, sR.y); ctx.lineTo(hR.x, hR.y); ctx.stroke(); // Rückenzug
-                
-                // Gelenkpunkte
-                ctx.fillStyle = "white";
+                // SKELETT ZEICHNEN
+                ctx.lineWidth = 5; ctx.shadowBlur = 15;
+                const color = mode === 'cyber' ? "#00d4ff" : "#ff00ff";
+                ctx.strokeStyle = color; ctx.shadowColor = color;
+
+                // Linien
+                const drawLine = (p1, p2) => {
+                    if(p1.score > 0.3 && p2.score > 0.3) {
+                        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                    }
+                };
+                drawLine(sL, sR); drawLine(sL, hL); drawLine(sR, hR);
+                drawLine(hL, kL); drawLine(kL, aL); drawLine(hR, kR); drawLine(kR, aR);
+
+                // GELENKPUNKTE (WEISS & GLOW)
+                ctx.fillStyle = "white"; ctx.shadowColor = "white";
                 [sL, sR, hL, hR, kL, kR, aL, aR].forEach(p => {
-                    if(p.score > 0.3) { ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, 7); ctx.fill(); }
+                    if(p.score > 0.3) { ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7); ctx.fill(); }
                 });
             }
         }
@@ -130,20 +144,28 @@ async function loop() {
 
 document.getElementById('start-btn').onclick = () => {
     recording = !recording;
-    document.getElementById('start-btn').innerText = recording ? "STOP" : "START";
-    document.getElementById('start-btn').style.background = recording ? "#ff4b4b" : "#00ff87";
-    if (recording) { reps = 0; best = 180; speak("Training gestartet"); }
+    const btn = document.getElementById('start-btn');
+    btn.innerText = recording ? "STOP" : "TRAINING STARTEN";
+    btn.style.background = recording ? "#ff4b4b" : "#00ff87";
+    if (recording) {
+        reps = 0; document.getElementById('rep-val').innerText = "0";
+        speak(phrases[modeSelect.value].start);
+    }
 };
 
 document.getElementById('ghost-btn').onclick = () => {
-    ghost = !ghost;
-    video.style.opacity = ghost ? "0" : "1";
-    document.getElementById('ghost-btn').style.background = ghost ? "#00d4ff" : "#444";
+    ghost = !ghost; video.style.opacity = ghost ? "0" : "1";
 };
 
-document.getElementById('switch-btn').onclick = async () => {
-    currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+document.getElementById('cam-btn').onclick = async () => {
+    currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
     await setupCam();
+};
+
+modeSelect.onchange = () => {
+    const isCyber = modeSelect.value === 'cyber';
+    document.getElementById('title-text').innerText = isCyber ? "NEON CYBER MODE" : "SCHÄTZELEIN TRAINER";
+    document.getElementById('title-text').style.color = isCyber ? "#00d4ff" : "#ff00ff";
 };
 
 init();
