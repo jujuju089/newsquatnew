@@ -1,44 +1,48 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="AI Multi-Coach", layout="wide")
+st.set_page_config(page_title="AI Power Coach", layout="wide")
 
 html_code = """
-<div id="app-shell" style="background: #000; font-family: 'Arial', sans-serif; padding: 15px; border-radius: 25px; color: white; max-width: 900px; margin: auto; border: 2px solid #333;">
+<div id="app-shell" style="background: #000; font-family: 'Arial Black', sans-serif; padding: 15px; border-radius: 25px; color: white; max-width: 900px; margin: auto; border: 2px solid #333; box-shadow: 0 0 30px rgba(255,255,255,0.1);">
 
     <!-- HEADER & MODE SWITCH -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h2 id="title-text" style="color: #00d4ff; margin: 0;">NEON CYBER MODE</h2>
-        <select id="mode-select" style="padding: 8px; border-radius: 10px; background: #222; color: white; border: 1px solid #00d4ff;">
-            <option value="cyber">Cyber Modus (Seriös)</option>
-            <option value="trainer">Schätzelein Modus (Anzüglich)</option>
+        <h2 id="title-text" style="color: #00ff87; margin: 0; font-style: italic;">PUMP & GAINS</h2>
+        <select id="mode-select" style="padding: 10px; border-radius: 10px; background: #222; color: white; border: 1px solid #444;">
+            <option value="cyber">🤖 Cyber Modus</option>
+            <option value="trainer">😘 Schätzelein Modus</option>
+            <option value="mcfit">💪 McFit (Hardcore)</option>
         </select>
     </div>
 
-    <!-- STATS BARS -->
+    <!-- STATS -->
     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-        <div style="flex: 1; background: #111; padding: 10px; border-radius: 15px; text-align: center; border-bottom: 3px solid #00d4ff;">
-            <small>WINKEL</small><br><b id="deg-val">--°</b>
+        <div style="flex: 1; background: #111; padding: 10px; border-radius: 15px; text-align: center; border: 1px solid #444;">
+            <small style="color: #888;">KNIE</small><br><b id="deg-val" style="font-size: 1.4em;">--°</b>
         </div>
-        <div style="flex: 1; background: #111; padding: 10px; border-radius: 15px; text-align: center; border-bottom: 3px solid #00ff87;">
-            <small>REPS</small><br><b id="rep-val">0</b>
+        <div style="flex: 1; background: #111; padding: 10px; border-radius: 15px; text-align: center; border: 1px solid #444;">
+            <small style="color: #888;">WDKH</small><br><b id="rep-val" style="font-size: 1.4em; color: #00ff87;">0</b>
         </div>
-        <div style="flex: 1; background: #111; padding: 10px; border-radius: 15px; text-align: center; border-bottom: 3px solid #ff4b4b;">
-            <small>RÜCKEN</small><br><b id="back-val">OK</b>
+        <div style="flex: 1; background: #111; padding: 10px; border-radius: 15px; text-align: center; border: 1px solid #444;">
+            <small style="color: #888;">RÜCKEN</small><br><b id="back-val" style="font-size: 1.2em;">OK</b>
         </div>
     </div>
 
-    <!-- CAMERA VIEW -->
+    <!-- VIEWPORT -->
     <div style="position: relative; border-radius: 20px; overflow: hidden; background: #050505;">
         <video id="video" autoplay playsinline muted style="width: 100%; height: auto;"></video>
         <canvas id="canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5;"></canvas>
     </div>
 
+    <!-- AUDIO (HIDDEN) -->
+    <audio id="fight-snd" src="https://www.zapsplat.com/wp-content/uploads/2015/sound-effects-one/human_grunt_effort_strong_001.mp3"></audio>
+    <audio id="gym-snd" src="https://www.zapsplat.com/wp-content/uploads/2015/sound-effects-one/sport_gym_weight_plate_clank_drop_001.mp3"></audio>
+
     <!-- CONTROLS -->
     <div style="display: flex; gap: 10px; margin-top: 15px;">
-        <button id="start-btn" style="flex: 2; padding: 15px; border-radius: 15px; border: none; background: #00ff87; font-weight: bold; cursor: pointer;">TRAINING STARTEN</button>
-        <button id="ghost-btn" style="flex: 1; padding: 15px; border-radius: 15px; border: 1px solid #444; background: #222; color: white;">GHOST</button>
-        <button id="cam-btn" style="padding: 15px; border-radius: 15px; background: #333; color: white; border: none;">📷</button>
+        <button id="start-btn" style="flex: 2; padding: 18px; border-radius: 15px; border: none; background: #00ff87; font-weight: bold; cursor: pointer; font-size: 1.1em;">SESSION STARTEN</button>
+        <button id="cam-btn" style="padding: 15px; border-radius: 15px; background: #333; color: white; border: none; width: 60px;">📷</button>
     </div>
 </div>
 
@@ -50,19 +54,30 @@ const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const modeSelect = document.getElementById('mode-select');
+const fightSnd = document.getElementById('fight-snd');
+const gymSnd = document.getElementById('gym-snd');
 
-let detector, recording = false, ghost = false, currentFacingMode = 'environment';
+let detector, recording = false, currentFacingMode = 'environment';
 let reps = 0, stage = 'up', lastSpeak = 0;
 
 const phrases = {
-    cyber: { start: "System bereit. Beginne Training.", depth: "Optimale Tiefe.", rep: (n) => n, back: "Haltung korrigieren!" },
-    trainer: { start: "Na, dann zeig mal was du hast, Schätzelein!", depth: "Oh ja, so tief gefällt mir das!", rep: (n) => n + ". Das machst du super, Süßer!", back: "Nicht so krumm werden, Schätzchen!" }
+    cyber: { start: "System aktiv.", depth: "Tiefe erreicht.", rep: (n) => n, back: "Haltung!" },
+    trainer: { start: "Zeig mir die Muskeln, Schätzelein!", depth: "Oh ja, so tief!", rep: (n) => n + ". Super, Süßer!", back: "Nicht krumm werden, Schätzchen!" },
+    mcfit: { start: "KEINE AUSREDEN! PUMP!", depth: "", rep: (n) => n + "! WEITER!", back: "RÜCKEN GERADE, DU LAUCH!" }
 };
 
 function speak(t) {
-    if (Date.now() - lastSpeak > 2500) {
+    if (Date.now() - lastSpeak > 2000) {
         const m = new SpeechSynthesisUtterance(t); m.lang = 'de-DE';
+        m.pitch = modeSelect.value === 'mcfit' ? 0.8 : 1.2;
         window.speechSynthesis.speak(m); lastSpeak = Date.now();
+    }
+}
+
+function playFight() {
+    if (modeSelect.value === 'mcfit') {
+        fightSnd.currentTime = 0; fightSnd.play();
+        setTimeout(() => { gymSnd.currentTime = 0; gymSnd.play(); }, 300);
     }
 }
 
@@ -91,7 +106,7 @@ async function loop() {
 
         if (poses.length > 0) {
             const kp = poses[0].keypoints;
-            const sL = kp[5], sR = kp[6], hL = kp[11], hR = kp[12], kL = kp[13], kR = kp[14], aL = kp[15], aR = kp[16];
+            const sR = kp[6], hR = kp[12], kR = kp[14], aR = kp[16];
 
             if (hR.score > 0.3 && kR.score > 0.3) {
                 const ang = getAngle(hR, kR, aR);
@@ -102,40 +117,39 @@ async function loop() {
 
                 if (recording) {
                     if (ang < 100 && stage === 'up') { 
-                        stage = 'down'; speak(phrases[mode].depth); 
+                        stage = 'down'; 
+                        if(mode !== 'mcfit') speak(phrases[mode].depth); 
                     }
                     if (ang > 150 && stage === 'down') { 
                         reps++; stage = 'up'; 
+                        playFight(); // Kampfgeräusche im McFit Modus
                         speak(phrases[mode].rep(reps));
                         document.getElementById('rep-val').innerText = reps;
                     }
-                    if (back < 140) {
+                    // TOLERANZ FIX: Rücken erst ab 130° als krumm werten
+                    if (back < 130) { 
                         document.getElementById('back-val').innerText = "KRUMM";
+                        document.getElementById('back-val').style.color = "red";
                         speak(phrases[mode].back);
                     } else {
                         document.getElementById('back-val').innerText = "OK";
+                        document.getElementById('back-val').style.color = "#00ff87";
                     }
                 }
 
-                // SKELETT ZEICHNEN
-                ctx.lineWidth = 5; ctx.shadowBlur = 15;
-                const color = mode === 'cyber' ? "#00d4ff" : "#ff00ff";
-                ctx.strokeStyle = color; ctx.shadowColor = color;
-
-                // Linien
-                const drawLine = (p1, p2) => {
-                    if(p1.score > 0.3 && p2.score > 0.3) {
-                        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                // SKELETT
+                ctx.lineWidth = 6; ctx.strokeStyle = mode === 'mcfit' ? "#ff0000" : (mode === 'trainer' ? "#ff00ff" : "#00d4ff");
+                ctx.shadowBlur = 10; ctx.shadowColor = ctx.strokeStyle;
+                
+                // Zeichne Punkte & Linien
+                [sR, hR, kR, aR].forEach(p => {
+                    if(p.score > 0.3) {
+                        ctx.fillStyle = "white";
+                        ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, 7); ctx.fill();
                     }
-                };
-                drawLine(sL, sR); drawLine(sL, hL); drawLine(sR, hR);
-                drawLine(hL, kL); drawLine(kL, aL); drawLine(hR, kR); drawLine(kR, aR);
-
-                // GELENKPUNKTE (WEISS & GLOW)
-                ctx.fillStyle = "white"; ctx.shadowColor = "white";
-                [sL, sR, hL, hR, kL, kR, aL, aR].forEach(p => {
-                    if(p.score > 0.3) { ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7); ctx.fill(); }
                 });
+                ctx.beginPath(); ctx.moveTo(sR.x, sR.y); ctx.lineTo(hR.x, hR.y); 
+                ctx.lineTo(kR.x, kR.y); ctx.lineTo(aR.x, aR.y); ctx.stroke();
             }
         }
     }
@@ -144,28 +158,14 @@ async function loop() {
 
 document.getElementById('start-btn').onclick = () => {
     recording = !recording;
-    const btn = document.getElementById('start-btn');
-    btn.innerText = recording ? "STOP" : "TRAINING STARTEN";
-    btn.style.background = recording ? "#ff4b4b" : "#00ff87";
-    if (recording) {
-        reps = 0; document.getElementById('rep-val').innerText = "0";
-        speak(phrases[modeSelect.value].start);
-    }
-};
-
-document.getElementById('ghost-btn').onclick = () => {
-    ghost = !ghost; video.style.opacity = ghost ? "0" : "1";
+    document.getElementById('start-btn').innerText = recording ? "STOP" : "SESSION STARTEN";
+    document.getElementById('start-btn').style.background = recording ? "#ff4b4b" : "#00ff87";
+    if (recording) { reps = 0; speak(phrases[modeSelect.value].start); }
 };
 
 document.getElementById('cam-btn').onclick = async () => {
     currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
     await setupCam();
-};
-
-modeSelect.onchange = () => {
-    const isCyber = modeSelect.value === 'cyber';
-    document.getElementById('title-text').innerText = isCyber ? "NEON CYBER MODE" : "SCHÄTZELEIN TRAINER";
-    document.getElementById('title-text').style.color = isCyber ? "#00d4ff" : "#ff00ff";
 };
 
 init();
